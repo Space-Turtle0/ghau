@@ -42,7 +42,7 @@ def download(url: str, save_file: str, debug: bool):
                 message("Wrote chunk {} to {}".format(str(i), save_file), debug)
 
 
-def extract_zip(file_path):
+def extract_zip(file_path):  # TODO: Add whitelist filter, keep from overwriting protected files.
     """Extracts files from the given zip path and performs cleanup operations"""
     extract_path = "."
     with zipfile.ZipFile(file_path, "r") as zf:

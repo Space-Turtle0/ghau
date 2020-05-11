@@ -85,6 +85,12 @@ class FileNotScriptError(GhauError):
         self.message = ("The file '{}' is not a python script.".format(file))
 
 
+class LoopPreventionError(GhauError):
+    """Raised when rebooting after an update, to prevent potential loops if user doesn't bump version number."""
+    def __init__(self):
+        self.message = "Booting after update install, skipping update check."
+
+
 def devtest():  # TODO Improve dev environment detection
     """Tests for an active dev environment"""
     pl = wcmatch.WcMatch(".", ".git/*", "", flags=wcmatch.RECURSIVE | wcmatch.DIRPATHNAME | wcmatch.FILEPATHNAME |
@@ -101,3 +107,8 @@ def ratetest(ratemin: int, token=None):
         raise GitHubRateLimitError(rl.core.reset.timestamp())
     else:
         files.message("API requests remaining: " + str(rl.core.remaining))
+
+
+def argtest(args: list, arg: str):
+    if arg in args:
+        raise LoopPreventionError
