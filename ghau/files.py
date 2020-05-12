@@ -24,14 +24,14 @@ import requests
 from wcmatch import wcmatch
 
 
-def message(msg, send: bool = False):
-    """Sends a message to the console if send is true."""
+def message(msg, send: bool = False):  # TODO: Change to utilize 'logging' module, much more flexible.
+    """Sends a message to the console if send is true. Used to easily control debug and error message output."""
     if send:
         print("GHAU: "+str(msg))
 
 
 def download(url: str, save_file: str, debug: bool):
-    """Download a file from a url and save it."""
+    """Download a file from the given url and save it to the given save_file."""
     r = requests.get(url, stream=True)
     with open(save_file, "wb") as fd:
         i = 0
@@ -42,9 +42,8 @@ def download(url: str, save_file: str, debug: bool):
                 message("Wrote chunk {} to {}".format(str(i), save_file), debug)
 
 
-def extract_zip(file_path):  # TODO: Add whitelist filter, keep from overwriting protected files.
-    """Extracts files from the given zip path and performs cleanup operations"""
-    extract_path = "."
+def extract_zip(extract_path, file_path):  # TODO: Add whitelist filter, keep from overwriting protected files.
+    """Extracts files from the given zip file_path into the given extract_path and performs cleanup operations."""
     with zipfile.ZipFile(file_path, "r") as zf:
         zf.extractall(extract_path)
         for item in zf.infolist():
@@ -60,7 +59,7 @@ def extract_zip(file_path):  # TODO: Add whitelist filter, keep from overwriting
 
 
 def clean_files(file_list: list, clean: bool, debug: bool):
-    """Delete all files in the file_list"""
+    """Delete all files in the file_list. Used to perform cleaning if ghau.update.Update.clean is enabled."""
     if clean:
         for path in file_list:
             message("Removing path {}".format(path), debug)
@@ -69,17 +68,29 @@ def clean_files(file_list: list, clean: bool, debug: bool):
         pass
 
 
-def load_whitelist(whitelist: list) -> list:  # uses wcmatch, see their documentation for information.
-    """Filter directory based on given whitelist"""
-    file_search = ""
-    dir_search = ""
-    if whitelist is not None:
-        for item in whitelist:
-            for key in item:
-                if item[key] is False:
-                    file_search += "|!"+key
-                elif item[key] is True:
-                    dir_search += "|"+key
-    pl = wcmatch.WcMatch(".", file_search, dir_search, flags=wcmatch.RECURSIVE |
+def load_whitelist(root: str, whitelist: list, debug: bool = False) -> list:
+    """Filter directory based on given whitelist. Returns any files not listed in the whitelist. This function utilizes
+    wcmatch."""
+    file_filter = ""
+    dir_filter = ""
+    f, d = 0, 0
+    for item in whitelist:
+        for key in item:
+            if item[key] is False:
+                if f == 0:  # wcmatch requires no '|' on the first entry.
+                    file_filter += "!"+key
+                else:
+                    file_filter += "|!"+key
+                f += 1
+            elif item[key] is True:
+                if d == 0:
+                    dir_filter += key
+                else:
+                    dir_filter += "|"+key
+                d += 1
+    message("file_filter: {}".format(file_filter), debug)
+    message("dir_filter: {}".format(dir_filter), debug)
+    message("Checking whitelisted files in directory: {}".format(root), debug)
+    pl = wcmatch.WcMatch(root, file_filter, dir_filter, flags=wcmatch.RECURSIVE |
                          wcmatch.DIRPATHNAME | wcmatch.FILEPATHNAME | wcmatch.GLOBSTAR).match()
     return pl

@@ -16,16 +16,11 @@
 #  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 #  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-from .dataclass import *
+from .update import *
 
 __all__ = [
-    "whitelist_test",
-    "whitelist_add",
-    "whitelist_remove",
     "python",
     "exe",
     "cmd",
-    "Update",
-    "is_file",
-    "is_folder"
+    "Update"
 ]

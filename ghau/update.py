@@ -24,15 +24,16 @@ import subprocess
 import ghau.errors as ge
 import ghau.files as gf
 from github import Github, RateLimitExceededException, UnknownObjectException, GitRelease
-is_folder = True  # Friendly names to use with building whitelists
-is_file = False
 
 
-def _find_release_asset(release: GitRelease, asset: str, debug: bool) -> str:  # TODO: asset detection using regex
+def _find_release_asset(release: GitRelease.GitRelease, asset: str, debug: bool) -> str:  # TODO: detect asset use regex
     """Return the requested asset's download url from the given release.
-    If no asset is requested, it will return the first one it comes across."""
+    If no specific asset is requested, it will return the first one it comes across.
+
+    :exception ghau.errors.ReleaseAssetError: No asset by given name was found.
+    :exception ghau.errors.NoAssetsFoundError: No assets found for given release."""
     al = release.get_assets()
-    if len(al) == 0:  # if there are no assets, abort.
+    if al.totalCount == 0:  # if there are no assets, abort.
         raise ge.NoAssetsFoundError(release.tag_name)
     if asset is None:  # if no specific asset is requested, download the first it finds.
         return al[0].browser_download_url
@@ -49,8 +50,14 @@ def _update_check(local, online):  # TODO Improve update detection, if it's newe
     return x
 
 
-def _load_release(repo: str, pre_releases: bool, auth) -> GitRelease:
-    """Returns the latest release (or pre_release if enabled) for the loaded repository"""
+def _load_release(repo: str, pre_releases: bool, auth) -> GitRelease.GitRelease:
+    """Returns the latest release (or pre_release if enabled) for the loaded repository.
+
+    :exception ghau.errors.ReleaseNotFoundError: No releases found for given repository.
+
+    :exception ghau.errors.GithubRateLimitError: Hit the rate limit in the process of loading the release.
+
+    :exception ghau.errors.RepositoryNotFoundError: Given repository is not found."""
     g = Github(auth)
     try:
         if g.get_repo(repo).get_releases().totalCount == 0:  # no releases found
@@ -64,7 +71,7 @@ def _load_release(repo: str, pre_releases: bool, auth) -> GitRelease:
                 raise(ge.ReleaseNotFoundError(repo))
     except RateLimitExceededException:
         reset_time = g.rate_limiting_resettime
-        raise ge.GitHubRateLimitError(reset_time)
+        raise ge.GithubRateLimitError(reset_time)
     except UnknownObjectException:
         raise ge.RepositoryNotFoundError(repo)
 
@@ -86,7 +93,11 @@ def _run_cmd(command: str):
 def python(file: str) -> str:  # used by users to reboot to the given python file in the working directory.
     """Builds the command required to run the given python file if it is in the current working directory.
 
-    Useful for building the command to place in ghau.Data.reboot"""
+    This is the recommended way to reboot into a python file, as it adds an argument ghau detects to stop update loops.
+    Useful for building the command to place in ghau.Data.reboot.
+
+    :exception ghau.errors.FileNotScriptError: raised if the given file is not a python script.
+    """
     if file.endswith(".py"):
         executable = sys.executable
         file_path = os.path.join(os.getcwd(), file)
@@ -98,7 +109,10 @@ def python(file: str) -> str:  # used by users to reboot to the given python fil
 def exe(file: str) -> str:  # added for consistency. Boots file in working directory.
     """Added for consistency with ghau.python.
 
-    This will ensure the file run is an .exe file and run it if it is in the current working directory."""
+    This is the recommended way to reboot into an executable file, as it adds an argument ghau detects to stop update
+    loops. This will also ensure the file run is an .exe file and run it if it is in the current working directory.
+
+    :exception ghau.errors.FileNotExeError: raised if the given file is not an executable."""
     if file.endswith(".exe"):
         return "{} -ghau".format(file)
     else:
@@ -108,40 +122,18 @@ def exe(file: str) -> str:  # added for consistency. Boots file in working direc
 def cmd(command: str) -> str:  # same as exe
     """Added for consistency with ghau.python.
 
-    This will simply return the given string with the loop prevention argument."""
+    This is the recommended way to reboot using any other command, as it adds an argument ghau detects to stop update
+    loops."""
     return "{} -ghau".format(command)
 
 
-def whitelist_test(whitelist: list):
-    """Test the whitelist and output what isn't protected."""
-    pl = gf.load_whitelist(whitelist)
-    if len(pl) == 0:
-        gf.message("Everything is protected by your whitelist", True)
-    else:
-        gf.message("Whitelist will not protect the following: ", True)
-        for path in pl:
-            gf.message(path, True)
-
-
-def whitelist_add(whitelist: list, pattern: str, folder: bool):
-    """Programmatically add item to the given whitelist."""
-    whitelist.append({pattern, folder})
-
-
-def whitelist_remove(whitelist: list, pattern: str):
-    """Programmatically remove item from the given whitelist."""
-    for item in whitelist:
-        for key in item:
-            if key == pattern:
-                whitelist.remove(item)
-
-
 class Update:
-    """Main data class used to determine ghau update behavior.
+    """Main class used trigger updates through ghau.
 
     :param version: local version to check against online versions.
     :type version: str
-    :param repo: github repository to check for updates in. Must be publicly accessible unless you are using a Github Token.
+    :param repo: github repository to check for updates in.
+        Must be publicly accessible unless you are using a Github Token.
     :type repo: str
     :param pre-releases: accept pre-releases as valid updates, defaults to False.
     :type pre-releases: bool, optional
@@ -149,48 +141,53 @@ class Update:
     :type reboot: str, optional
     :param clean: clean directory before installing updates, defaults to False.
     :type clean: bool, optional
-    :param whitelist: list of file/directory patterns to determine protection from directory cleaning, defaults to None. The list should contain dictionaries with the following structure {pattern: bool}.
-        Pattern is the query to determine file protection, and the bool is True if you're refering to a folder, and False if you're referring to a file.
-    :type whitelist: list, optional
-    :param download: the type of download you wish to use for updates. Either "zip" (source code) or "asset" (uploaded files), defaults to "zip".
+    :param download: the type of download you wish to use for updates.
+        Either "zip" (source code) or "asset" (uploaded files), defaults to "zip".
     :type download: str, optional
     :param asset: name of asset to download when set to "asset" mode.
     :type asset: str, optional.
     :param auth: authentication token used for accessing the Github API, defaults to None.
     :type auth: str, optional
-    :param ratemin: minimum amount of API requests left before updates will stop, defaults to 20. Maximum is 60/hr for unauthorized requests.
+    :param ratemin: minimum amount of API requests left before updates will stop, defaults to 20.
+        Maximum is 60/hr for unauthorized requests, and 5000 for authorized requests.
     :type ratemin: int, optional.
     :param debug: receive debug messages regarding the update process, defaults to False.
     :type debug: bool, optional.
     """
     def __init__(self, version: str, repo: str, pre_releases: bool = False,
-                 reboot: str = None, clean: bool = False, whitelist: list = None, download: str = "zip",
+                 reboot: str = None, clean: bool = False, download: str = "zip",
                  asset: str = None, auth: str = None, ratemin: int = 20, debug: bool = False):
-        self.auth = auth  # auth token used to increase Github API rate limit
-        self.ratemin = ratemin  # minimum amount of rates before updates stop
-        self.debug = debug  # debug messages
-        self.version = version  # current software version (same as Github Tag)
-        self.repo = repo  # repo downloading from
-        self.pre_releases = pre_releases  # download pre-releases?
-        self.clean = clean  # fully clean directory before install?
-        self.whitelist = whitelist  # files protected from deletion when clean is True
-        self.reboot = reboot  # command used to reboot after install
-        self.download = download  # download type, either 'zip' or 'asset'
-        self.asset = asset  # name of asset to download
+        self.auth = auth
+        self.ratemin = ratemin
+        self.debug = debug
+        self.version = version
+        self.repo = repo
+        self.pre_releases = pre_releases
+        self.clean = clean
+        self.whitelist = []
+        self.reboot = reboot
+        self.download = download
+        self.asset = asset
 
-    def check_for_updates(self):
+    def update(self):
+        """Check for updates and install if an update is found.
+
+        All exceptions triggered during the run of this method are automatically handled.
+        They are raised only to stop the update process, not the entire program.
+
+        :exception ghau.errors.InvalidDownloadTypeError"""
         try:
             ge.argtest(sys.argv, "-ghau")
-            ge.devtest()
+            ge.devtest(os.path.realpath(os.path.dirname(sys.argv[0])))
             ge.ratetest(self.ratemin, self.auth)
             latest_release = _load_release(self.repo, self.pre_releases, self.auth)
             do_update = _update_check(self.version, latest_release.tag_name)
             if do_update:
-                wl = gf.load_whitelist(self.whitelist)
+                wl = gf.load_whitelist(os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
                 gf.clean_files(wl, self.clean, self.debug)
                 if self.download == "zip":
                     gf.download(latest_release.zipball_url, "update.zip", self.debug)
-                    gf.extract_zip("update.zip")
+                    gf.extract_zip(os.path.realpath(os.path.dirname(sys.argv[0])), "update.zip")
                     gf.message("Updated from {} to {}".format(self.version, latest_release.tag_name), True)
                     _run_cmd(self.reboot)
                     sys.exit()
@@ -204,7 +201,40 @@ class Update:
                     raise ge.InvalidDownloadTypeError(self.download)
             else:
                 gf.message("No update required.", True)
-        except (ge.GitHubRateLimitError, ge.GitRepositoryFoundError, ge.ReleaseNotFoundError, ge.ReleaseAssetError,
-                ge.FileNotExeError, ge.FileNotScriptError, ge.NoAssetsFoundError, ge.InvalidDownloadTypeError) as e:
+        except (ge.GithubRateLimitError, ge.GitRepositoryFoundError, ge.ReleaseNotFoundError, ge.ReleaseAssetError,
+                ge.FileNotExeError, ge.FileNotScriptError, ge.NoAssetsFoundError, ge.InvalidDownloadTypeError,
+                ge.LoopPreventionError) as e:
             gf.message(e.message, True)
             return
+
+    def whitelist_test(self):
+        """Test the whitelist and output what isn't protected.
+
+        Useful for testing your whitelist configuration."""
+        gf.message(self.whitelist, self.debug)
+        pl = gf.load_whitelist(os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
+        gf.message(pl, self.debug)
+        if len(pl) == 0:
+            gf.message("Everything is protected by your whitelist", True)
+        else:
+            gf.message("Whitelist will not protect the following: ", True)
+            for path in pl:
+                gf.message(path, True)
+
+    def wl_folder(self, *argv):
+        """Add folders to the whitelist. This protects it from deletion during update installation.
+        Each folder should be a string referring to its name.
+
+        >>> self.wl_folder("/data", "*/docs")"""
+        for arg in argv:
+            self.whitelist.append({arg: True})
+            gf.message("Loaded folder {} into the whitelist.".format(arg), self.debug)
+
+    def wl_file(self, *argv):
+        """Add files to the whitelist. This protects it from deletion during update installation.
+        Each file should be a string referring to its name.
+
+        >>> self.wl_file("data.*", "*.txt")"""
+        for arg in argv:
+            self.whitelist.append({arg: False})
+            gf.message("Loaded file {} into the whitelist.".format(arg), self.debug)

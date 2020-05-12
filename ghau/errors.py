@@ -35,7 +35,7 @@ class GitRepositoryFoundError(GhauError):
         self.message = "Git Repository detected, aborting update process to protect file structure."
 
 
-class GitHubRateLimitError(GhauError):
+class GithubRateLimitError(GhauError):
     """Raised when exceeding GitHub's API rate."""
     def __init__(self, resettime):
         self.message = ("Current Github API rate limit reached. Cannot check for updates at this time.\n" 
@@ -91,24 +91,33 @@ class LoopPreventionError(GhauError):
         self.message = "Booting after update install, skipping update check."
 
 
-def devtest():  # TODO Improve dev environment detection
-    """Tests for an active dev environment"""
-    pl = wcmatch.WcMatch(".", ".git/*", "", flags=wcmatch.RECURSIVE | wcmatch.DIRPATHNAME | wcmatch.FILEPATHNAME |
+def devtest(root):  # TODO Improve dev environment detection
+    """Tests for an active dev environment.
+
+    :exception ghau.errors.GitRepositoryFoundError"""
+    pl = wcmatch.WcMatch(root, ".git/*", "", flags=wcmatch.RECURSIVE | wcmatch.DIRPATHNAME | wcmatch.FILEPATHNAME |
                          wcmatch.HIDDEN).match()
     if len(pl) > 0:
         raise GitRepositoryFoundError
 
 
 def ratetest(ratemin: int, token=None):
-    """Tests available Github API rate"""
+    """Tests available Github API rate.
+
+    :exception ghau.errors.GithubRateLimitError"""
     g = Github(token)
     rl = g.get_rate_limit()
     if rl.core.remaining <= ratemin:
-        raise GitHubRateLimitError(rl.core.reset.timestamp())
+        raise GithubRateLimitError(rl.core.reset.timestamp())
     else:
         files.message("API requests remaining: " + str(rl.core.remaining))
 
 
 def argtest(args: list, arg: str):
+    """Raises an error if the specified arg is found in the given args.
+
+    Used to determine if booting after an update.
+
+    :exception ghau.errors.LoopPreventionError"""
     if arg in args:
         raise LoopPreventionError
