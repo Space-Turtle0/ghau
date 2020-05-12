@@ -26,11 +26,11 @@ The API is going to be unstable at the moment until I get things sorted out. Tha
 
 See my current To-Do list for the package below:
 ### To-Do
-- Build proper documentation for user accessible functions
-- Upload to PyPi
 - Add proper tests (gotta figure out this one)
 - Improve on asset and version detection.
-- Make more functions open? *thinkin about this*
+- Improve developer environment detection.
+- Implement Python's `logging` module.
+- Extend Whitelist to protect files during extraction of downloaded zips.
 - Cleanup & Code Optimization
 ## Example
 ```py

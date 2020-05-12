@@ -94,7 +94,8 @@ class LoopPreventionError(GhauError):
 def devtest(root):  # TODO Improve dev environment detection
     """Tests for an active dev environment.
 
-    :exception ghau.errors.GitRepositoryFoundError"""
+    :exception ghau.errors.GitRepositoryFoundError: stops the update process if a .git folder is found within
+     the program directory"""
     pl = wcmatch.WcMatch(root, ".git/*", "", flags=wcmatch.RECURSIVE | wcmatch.DIRPATHNAME | wcmatch.FILEPATHNAME |
                          wcmatch.HIDDEN).match()
     if len(pl) > 0:
@@ -104,7 +105,8 @@ def devtest(root):  # TODO Improve dev environment detection
 def ratetest(ratemin: int, token=None):
     """Tests available Github API rate.
 
-    :exception ghau.errors.GithubRateLimitError"""
+    :exception ghau.errors.GithubRateLimitError: stops the update process if the available rates are below
+     the ratemin."""
     g = Github(token)
     rl = g.get_rate_limit()
     if rl.core.remaining <= ratemin:
@@ -116,8 +118,8 @@ def ratetest(ratemin: int, token=None):
 def argtest(args: list, arg: str):
     """Raises an error if the specified arg is found in the given args.
 
-    Used to determine if booting after an update.
+    Used to determine if booting after an update installation.
 
-    :exception ghau.errors.LoopPreventionError"""
+    :exception ghau.errors.LoopPreventionError: stops the update process if booting after an update installation."""
     if arg in args:
         raise LoopPreventionError
