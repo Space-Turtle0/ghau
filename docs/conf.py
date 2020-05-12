@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'ghau'
-copyright = '2020, Elizabeth Housden'
-author = 'Elizabeth Housden'
+copyright = '2020, InValidFire'
+author = 'InValidFire'
 
 # The full version, including alpha/beta/rc tags
 release = '[0.0.1]'
