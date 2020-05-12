@@ -93,8 +93,12 @@ def _run_cmd(command: str):
 def python(file: str) -> str:  # used by users to reboot to the given python file in the working directory.
     """Builds the command required to run the given python file if it is in the current working directory.
 
+    Useful for building the command to place in the reboot parameter of :class:`ghau.update.Update`.
+
     This is the recommended way to reboot into a python file, as it adds an argument ghau detects to stop update loops.
-    Useful for building the command to place in ghau.Data.reboot.
+    This will also ensure the file given is a python script.
+
+    See also: :func:`ghau.update.exe`, :func:`ghau.update.cmd`
 
     :exception ghau.errors.FileNotScriptError: raised if the given file is not a python script.
     """
@@ -107,10 +111,14 @@ def python(file: str) -> str:  # used by users to reboot to the given python fil
 
 
 def exe(file: str) -> str:  # added for consistency. Boots file in working directory.
-    """Added for consistency with ghau.python.
+    """Added for consistency with ghau.update.python.
+
+    Useful for building the command to place in the reboot parameter of :class:`ghau.update.Update`.
 
     This is the recommended way to reboot into an executable file, as it adds an argument ghau detects to stop update
-    loops. This will also ensure the file run is an .exe file and run it if it is in the current working directory.
+    loops. This will also ensure the file given is an .exe file.
+
+    See also: :func:`ghau.update.python`, :func:`ghau.update.cmd`
 
     :exception ghau.errors.FileNotExeError: raised if the given file is not an executable."""
     if file.endswith(".exe"):
@@ -120,15 +128,19 @@ def exe(file: str) -> str:  # added for consistency. Boots file in working direc
 
 
 def cmd(command: str) -> str:  # same as exe
-    """Added for consistency with ghau.python.
+    """Added for consistency with ghau.update.python.
 
-    This is the recommended way to reboot using any other command, as it adds an argument ghau detects to stop update
-    loops."""
+    Useful for building the command to place in the reboot parameter of :class:`ghau.update.Update`.
+
+    This is the recommended way to reboot using a command, as it adds an argument ghau detects to stop update loops.
+
+    See also: :func:`ghau.update.python`, :func:`ghau.update.exe`
+    """
     return "{} -ghau".format(command)
 
 
 class Update:
-    """Main class used trigger updates through ghau.
+    """Main class used to trigger updates through ghau.
 
     :param version: local version to check against online versions.
     :type version: str
@@ -172,10 +184,13 @@ class Update:
     def update(self):
         """Check for updates and install if an update is found.
 
-        All exceptions triggered during the run of this method are automatically handled.
-        They are raised only to stop the update process, not the entire program.
+        All expected exceptions triggered during the run of this method are automatically handled.
+        They are intentionally raised to stop the update process should it be needed, not the entire program.
 
-        :exception ghau.errors.InvalidDownloadTypeError"""
+        An error message will be printed to the console summarizing what occurred when this happens.
+
+        :exception ghau.errors.InvalidDownloadTypeError: an unexpected value was given to the download parameter of
+            :class:`ghau.update.Update`."""
         try:
             ge.argtest(sys.argv, "-ghau")
             ge.devtest(os.path.realpath(os.path.dirname(sys.argv[0])))
@@ -221,20 +236,26 @@ class Update:
             for path in pl:
                 gf.message(path, True)
 
-    def wl_folder(self, *argv):
-        """Add folders to the whitelist. This protects it from deletion during update installation.
+    def wl_folder(self, *args: str):
+        """Add folders to the whitelist. This protects any listed folders from deletion during update installation.
         Each folder should be a string referring to its name.
 
+        :param args: list of folders to protect.
+        :type args: str
+
         >>> self.wl_folder("/data", "*/docs")"""
-        for arg in argv:
+        for arg in args:
             self.whitelist.append({arg: True})
             gf.message("Loaded folder {} into the whitelist.".format(arg), self.debug)
 
-    def wl_file(self, *argv):
-        """Add files to the whitelist. This protects it from deletion during update installation.
+    def wl_file(self, *args: str):
+        """Add files to the whitelist. This protects any listed files from deletion during update installation.
         Each file should be a string referring to its name.
 
+        :param args: list of files to protect.
+        :type args: str
+
         >>> self.wl_file("data.*", "*.txt")"""
-        for arg in argv:
+        for arg in args:
             self.whitelist.append({arg: False})
             gf.message("Loaded file {} into the whitelist.".format(arg), self.debug)
