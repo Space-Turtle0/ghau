@@ -14,7 +14,7 @@ Basically I got tired of building update scripts for every program I made.
 - **Pre-Releases**: Choose to include pre-releases in updates.
 - **Developer Mode detection**: If the package detects a .git folder with files inside, it will automatically abort the update process to protect the file structure during development.
 - **Automatic Reboots**: Optionally reboot to a file or executable by supplying a command.
-- **Authentication**: Authenticate with the Github API to recieve a larger rate limit
+- **Authentication**: Authenticate with the Github API to recieve a larger rate limit and access to your private repositories.
   - Do not store your API token in a public location. Use environmental variables.
 - **Download assets or source code!**: Choose between downloading the source code or an uploaded asset!
 - **Reboot!**: Optionally automatically reboot into the newer program after update installation. Supports rebooting into a python script, executable, or a custom run command!
