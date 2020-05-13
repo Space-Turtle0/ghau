@@ -50,7 +50,7 @@ def _update_check(local, online):  # TODO Improve update detection, if it's newe
     return x
 
 
-def _load_release(repo: str, pre_releases: bool, auth) -> GitRelease.GitRelease:
+def _load_release(repo: str, pre_releases: bool, auth, debug: bool) -> GitRelease.GitRelease:
     """Returns the latest release (or pre_release if enabled) for the loaded repository.
 
     :exception ghau.errors.ReleaseNotFoundError: No releases found for given repository.
@@ -61,14 +61,20 @@ def _load_release(repo: str, pre_releases: bool, auth) -> GitRelease.GitRelease:
     g = Github(auth)
     try:
         if g.get_repo(repo).get_releases().totalCount == 0:  # no releases found
+            gf.message("Release count is 0", debug)
             raise ge.ReleaseNotFoundError(repo)
         if pre_releases:
-            return g.get_repo(repo).get_releases()[0]
+            gf.message("Accepting pre-releases", debug)
+            return g.get_repo(repo).get_releases().reversed[0]
         elif not pre_releases:
-            for release in g.get_repo(repo).get_releases():
+            gf.message("Accepting full releases", debug)
+            for release in g.get_repo(repo).get_releases().reversed:
+                gf.message("Checking release: {}".format(release.tag_name), debug)
                 if not release.prerelease:
+                    gf.message("Release found {}".format(release.tag_name), debug)
                     return release
-                raise(ge.ReleaseNotFoundError(repo))
+            gf.message("Zero non-pre-release releases found", debug)
+            raise(ge.ReleaseNotFoundError(repo))
     except RateLimitExceededException:
         reset_time = g.rate_limiting_resettime
         raise ge.GithubRateLimitError(reset_time)
@@ -195,7 +201,7 @@ class Update:
             ge.ratetest(self.ratemin, self.auth)
             wl = gf.load_dict("Whitelist", os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
             cl = gf.load_dict("Cleanlist", os.path.realpath(os.path.dirname(sys.argv[0])), self.cleanlist, self.debug)
-            latest_release = _load_release(self.repo, self.pre_releases, self.auth)
+            latest_release = _load_release(self.repo, self.pre_releases, self.auth, self.debug)
             do_update = _update_check(self.version, latest_release.tag_name)
             if do_update:
                 gf.clean_files(cl, self.debug)
