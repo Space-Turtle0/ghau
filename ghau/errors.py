@@ -91,6 +91,13 @@ class LoopPreventionError(GhauError):
         self.message = "Booting after update install, skipping update check."
 
 
+class NoPureWildcardsAllowedError(GhauError):
+    """Raised when a pure '*' entry is found in either the whitelist or cleanlist. This is to protect programs
+     from accidentally wiping too much. Be more specific in your searches."""
+    def __init__(self, listname: str):
+        self.message = ("Found a pure '*' entry in the {} list. Please remove it.".format(listname))
+
+
 def devtest(root):  # TODO Improve dev environment detection
     """Tests for an active dev environment.
 

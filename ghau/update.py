@@ -83,7 +83,7 @@ def _run_cmd(command: str):
         sys.exit()
     if sys.platform == "win32":  # windows needs special treatment
         data = command.split()
-        subprocess.Popen(data)
+        subprocess.call(data)  # windows terminal doesn't play nice with replacing the process. :(
         sys.exit()
     else:
         subprocess.Popen(command)
@@ -151,8 +151,6 @@ class Update:
     :type pre-releases: bool, optional
     :param reboot: command intended to reboot the program after a successful update installs.
     :type reboot: str, optional
-    :param clean: clean directory before installing updates, defaults to False.
-    :type clean: bool, optional
     :param download: the type of download you wish to use for updates.
         Either "zip" (source code) or "asset" (uploaded files), defaults to "zip".
     :type download: str, optional
@@ -167,7 +165,7 @@ class Update:
     :type debug: bool, optional.
     """
     def __init__(self, version: str, repo: str, pre_releases: bool = False,
-                 reboot: str = None, clean: bool = False, download: str = "zip",
+                 reboot: str = None, download: str = "zip",
                  asset: str = None, auth: str = None, ratemin: int = 20, debug: bool = False):
         self.auth = auth
         self.ratemin = ratemin
@@ -175,8 +173,8 @@ class Update:
         self.version = version
         self.repo = repo
         self.pre_releases = pre_releases
-        self.clean = clean
-        self.whitelist = []
+        self.whitelist = {"!*": False}  # wcmatch requires item in its file_search parameter or it pulls everything.
+        self.cleanlist = {"!*": False}
         self.reboot = reboot
         self.download = download
         self.asset = asset
@@ -195,14 +193,15 @@ class Update:
             ge.argtest(sys.argv, "-ghau")
             ge.devtest(os.path.realpath(os.path.dirname(sys.argv[0])))
             ge.ratetest(self.ratemin, self.auth)
+            wl = gf.load_dict("Whitelist", os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
+            cl = gf.load_dict("Cleanlist", os.path.realpath(os.path.dirname(sys.argv[0])), self.cleanlist, self.debug)
             latest_release = _load_release(self.repo, self.pre_releases, self.auth)
             do_update = _update_check(self.version, latest_release.tag_name)
             if do_update:
-                wl = gf.load_whitelist(os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
-                gf.clean_files(wl, self.clean, self.debug)
+                gf.clean_files(cl, self.debug)
                 if self.download == "zip":
                     gf.download(latest_release.zipball_url, "update.zip", self.debug)
-                    gf.extract_zip(os.path.realpath(os.path.dirname(sys.argv[0])), "update.zip")
+                    gf.extract_zip(os.path.realpath(os.path.dirname(sys.argv[0])), "update.zip", wl, self.debug)
                     gf.message("Updated from {} to {}".format(self.version, latest_release.tag_name), True)
                     _run_cmd(self.reboot)
                     sys.exit()
@@ -222,40 +221,94 @@ class Update:
             gf.message(e.message, True)
             return
 
-    def whitelist_test(self):
-        """Test the whitelist and output what isn't protected.
+    def wl_test(self):
+        """Test the whitelist and output what's protected.
 
         Useful for testing your whitelist configuration."""
         gf.message(self.whitelist, self.debug)
-        pl = gf.load_whitelist(os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
-        gf.message(pl, self.debug)
-        if len(pl) == 0:
-            gf.message("Everything is protected by your whitelist", True)
+        wl = gf.load_dict("Whitelist", os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
+        gf.message(wl, self.debug)
+        if len(wl) == 0:
+            gf.message("Nothing is protected by your whitelist.", True)
         else:
-            gf.message("Whitelist will not protect the following: ", True)
-            for path in pl:
+            gf.message("Whitelist will protect the following from being overwritten during installation: ", True)
+            for path in wl:
                 gf.message(path, True)
 
-    def wl_folder(self, *args: str):
-        """Add folders to the whitelist. This protects any listed folders from deletion during update installation.
-        Each folder should be a string referring to its name.
-
-        :param args: list of folders to protect.
-        :type args: str
-
-        >>> self.wl_folder("/data", "*/docs")"""
-        for arg in args:
-            self.whitelist.append({arg: True})
-            gf.message("Loaded folder {} into the whitelist.".format(arg), self.debug)
-
-    def wl_file(self, *args: str):
+    def wl_files(self, *args: str):
         """Add files to the whitelist. This protects any listed files from deletion during update installation.
         Each file should be a string referring to its name.
 
         :param args: list of files to protect.
+        :type args: str"""
+        if len(self.whitelist.keys()) == 1 and "!*" in self.cleanlist.keys():  # resets whitelist if not used yet.
+            self.whitelist = {}
+            gf.message("Reset whitelist for building.", self.debug)
+        for arg in args:
+            self.whitelist[arg] = False
+            gf.message("Loaded file {} into the whitelist.".format(arg), self.debug)
+
+    def wl_exclude(self, *args: str):
+        """Add directories here to exclude them in building the whitelist.
+
+        Useful to fine-tune your whitelist if it's grabbing too many files.
+
+        :param args: list of folders to exclude.
+        :type args: str"""
+        if len(self.whitelist.keys()) == 1 and "!*" in self.cleanlist.keys:  # resets whitelist if not used yet.
+            self.whitelist = {}
+            gf.message("Reset whitelist for building.", self.debug)
+        for arg in args:
+            self.whitelist[arg] = True
+            gf.message("Loaded file {} into the whitelist.".format(arg), self.debug)
+
+    def cl_test(self):
+        """Test the cleanlist and output what it will clean.
+
+        Useful for testing your cleaning configuration."""
+        gf.message(self.cleanlist, self.debug)
+        cl = gf.load_dict("Cleanlist", os.path.realpath(os.path.dirname(sys.argv[0])), self.cleanlist, self.debug)
+        gf.message(cl, self.debug)
+        if len(cl) == 0:
+            gf.message("Nothing will be deleted during cleaning.", True)
+        else:
+            gf.message("Cleaning will delete the following: ", True)
+            for path in cl:
+                gf.message(path, self.debug)
+
+    def cl_files(self, *args):
+        """List files here you would like to erase before installing an update.
+        Each file should be a string referring to its name.
+
+        :param args: list of files to delete.
         :type args: str
 
-        >>> self.wl_file("data.*", "*.txt")"""
+        :exception ghau.errors.NoPureWildcardsAllowedError: Found a "*" or "*.*" entry in the given arguments.
+            Be more specific than that. This is to protect consumer devices should they have your program in a different
+            environment. We don't want to wipe anyone's devices."""
+        try:
+            if "*" in args or "*.*" in args:
+                raise ge.NoPureWildcardsAllowedError("cleanlist")  # wildcard protection, no wiping devices.
+        except ge.NoPureWildcardsAllowedError as e:
+            gf.message(e.message, True)
+            raise
+        if len(self.cleanlist.keys()) == 1 and "!*" in self.cleanlist.keys():  # resets cleanlist if not used yet.
+            self.cleanlist = {}
+            gf.message("Reset cleanlist for building.", True)
         for arg in args:
-            self.whitelist.append({arg: False})
-            gf.message("Loaded file {} into the whitelist.".format(arg), self.debug)
+            self.cleanlist[arg] = False
+            gf.message("Loaded file {} into the cleanlist.".format(arg), self.debug)
+
+    def cl_exclude(self, *args: str):
+        """Add directories here to exclude them in building the cleanlist.
+
+        Useful to fine-tune your cleanlist if it's grabbing too many files.
+
+        :param args: list of folders to exclude.
+        :type args: str"""
+        if len(self.cleanlist.keys()) == 1 and "!*" in self.cleanlist.keys():  # resets cleanlist if it's not used yet.
+            self.cleanlist = {}
+            gf.message("Reset cleanlist for building.", True)
+        for arg in args:
+            self.cleanlist[arg] = True
+            gf.message("Loaded file {} into the cleanlist exclusions.".format(arg), self.debug)

@@ -33,8 +33,8 @@ setuptools.setup(
     url='https://www.github.com/InValidFire/ghau',
     license='MIT License',
     install_requires=[
-        "wcmatch~=6.0.1",
-        "PyGithub~=1.51",
-        "requests~=2.23.0"
+        "wcmatch>=6.0.1",
+        "PyGithub>=1.51",
+        "requests>=2.23.0"
     ]
 )
