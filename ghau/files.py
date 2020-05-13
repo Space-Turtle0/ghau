@@ -17,6 +17,7 @@
 #  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
+import sys
 import shutil
 import zipfile
 
@@ -62,11 +63,13 @@ def extract_zip(extract_path, file_path, wl: list, debug: bool = False):
     :type wl: list
     :param debug: send debug messages
     :type debug: bool"""
+    program_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
+    message("Extracting: {}".format(file_path), debug)
     with zipfile.ZipFile(file_path, "r") as zf:
         zf.extractall(extract_path)
         for item in zf.infolist():
             if item.is_dir():
-                extract_folder = item.filename
+                extract_folder = os.path.join(program_dir, item.filename)
                 break
     for filename in os.listdir(os.path.join(extract_path, extract_folder)):
         message("Comparing: file {}".format(filename), debug)

@@ -108,9 +108,10 @@ def python(file: str) -> str:  # used by users to reboot to the given python fil
 
     :exception ghau.errors.FileNotScriptError: raised if the given file is not a python script.
     """
+    program_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
     if file.endswith(".py"):
         executable = sys.executable
-        file_path = os.path.join(os.getcwd(), file)
+        file_path = os.path.join(program_dir, file)
         return "{} {} -ghau".format(executable, file_path)
     else:
         raise ge.FileNotScriptError(file)
@@ -184,6 +185,7 @@ class Update:
         self.reboot = reboot
         self.download = download
         self.asset = asset
+        self.program_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
 
     def update(self):
         """Check for updates and install if an update is found.
@@ -197,21 +199,23 @@ class Update:
             :class:`ghau.update.Update`."""
         try:
             ge.argtest(sys.argv, "-ghau")
-            ge.devtest(os.path.realpath(os.path.dirname(sys.argv[0])))
+            ge.devtest(self.program_dir)
             ge.ratetest(self.ratemin, self.auth)
-            wl = gf.load_dict("Whitelist", os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
-            cl = gf.load_dict("Cleanlist", os.path.realpath(os.path.dirname(sys.argv[0])), self.cleanlist, self.debug)
+            wl = gf.load_dict("Whitelist", self.program_dir, self.whitelist, self.debug)
+            cl = gf.load_dict("Cleanlist", self.program_dir, self.cleanlist, self.debug)
             latest_release = _load_release(self.repo, self.pre_releases, self.auth, self.debug)
             do_update = _update_check(self.version, latest_release.tag_name)
             if do_update:
                 gf.clean_files(cl, self.debug)
                 if self.download == "zip":
-                    gf.download(latest_release.zipball_url, "update.zip", self.debug)
-                    gf.extract_zip(os.path.realpath(os.path.dirname(sys.argv[0])), "update.zip", wl, self.debug)
+                    gf.message("Downloading Zip", self.debug)
+                    gf.download(latest_release.zipball_url, os.path.join(self.program_dir, "update.zip"), self.debug)
+                    gf.extract_zip(self.program_dir, os.path.join(self.program_dir, "update.zip"), wl, self.debug)
                     gf.message("Updated from {} to {}".format(self.version, latest_release.tag_name), True)
                     _run_cmd(self.reboot)
                     sys.exit()
                 if self.download == "asset":
+                    gf.message("Downloading Asset", self.debug)
                     asset_link = _find_release_asset(latest_release, self.asset, self.debug)
                     gf.download(asset_link, self.asset, self.debug)
                     gf.message("Updated from {} to {}".format(self.version, latest_release.tag_name), True)
@@ -232,7 +236,7 @@ class Update:
 
         Useful for testing your whitelist configuration."""
         gf.message(self.whitelist, self.debug)
-        wl = gf.load_dict("Whitelist", os.path.realpath(os.path.dirname(sys.argv[0])), self.whitelist, self.debug)
+        wl = gf.load_dict("Whitelist", self.program_dir, self.whitelist, self.debug)
         gf.message(wl, self.debug)
         if len(wl) == 0:
             gf.message("Nothing is protected by your whitelist.", True)
@@ -273,7 +277,7 @@ class Update:
 
         Useful for testing your cleaning configuration."""
         gf.message(self.cleanlist, self.debug)
-        cl = gf.load_dict("Cleanlist", os.path.realpath(os.path.dirname(sys.argv[0])), self.cleanlist, self.debug)
+        cl = gf.load_dict("Cleanlist", self.program_dir, self.cleanlist, self.debug)
         gf.message(cl, self.debug)
         if len(cl) == 0:
             gf.message("Nothing will be deleted during cleaning.", True)
