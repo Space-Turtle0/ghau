@@ -173,8 +173,8 @@ class Update:
         self.version = version
         self.repo = repo
         self.pre_releases = pre_releases
-        self.whitelist = {"!*": False}  # wcmatch requires item in its file_search parameter or it pulls everything.
-        self.cleanlist = {"!*": False}
+        self.whitelist = {"!**": False}  # wcmatch requires item in its file_search parameter or it pulls everything.
+        self.cleanlist = {"!**": False}
         self.reboot = reboot
         self.download = download
         self.asset = asset
@@ -241,7 +241,7 @@ class Update:
 
         :param args: list of files to protect.
         :type args: str"""
-        if len(self.whitelist.keys()) == 1 and "!*" in self.cleanlist.keys():  # resets whitelist if not used yet.
+        if len(self.whitelist.keys()) == 1 and "!**" in self.cleanlist.keys():  # resets whitelist if not used yet.
             self.whitelist = {}
             gf.message("Reset whitelist for building.", self.debug)
         for arg in args:
@@ -255,7 +255,7 @@ class Update:
 
         :param args: list of folders to exclude.
         :type args: str"""
-        if len(self.whitelist.keys()) == 1 and "!*" in self.cleanlist.keys:  # resets whitelist if not used yet.
+        if len(self.whitelist.keys()) == 1 and "!**" in self.cleanlist.keys:  # resets whitelist if not used yet.
             self.whitelist = {}
             gf.message("Reset whitelist for building.", self.debug)
         for arg in args:
@@ -292,7 +292,7 @@ class Update:
         except ge.NoPureWildcardsAllowedError as e:
             gf.message(e.message, True)
             raise
-        if len(self.cleanlist.keys()) == 1 and "!*" in self.cleanlist.keys():  # resets cleanlist if not used yet.
+        if len(self.cleanlist.keys()) == 1 and "!**" in self.cleanlist.keys():  # resets cleanlist if not used yet.
             self.cleanlist = {}
             gf.message("Reset cleanlist for building.", True)
         for arg in args:
@@ -306,7 +306,7 @@ class Update:
 
         :param args: list of folders to exclude.
         :type args: str"""
-        if len(self.cleanlist.keys()) == 1 and "!*" in self.cleanlist.keys():  # resets cleanlist if it's not used yet.
+        if len(self.cleanlist.keys()) == 1 and "!**" in self.cleanlist.keys():  # resets cleanlist if it's not used yet.
             self.cleanlist = {}
             gf.message("Reset cleanlist for building.", True)
         for arg in args:

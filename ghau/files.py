@@ -92,8 +92,6 @@ def clean_files(file_list: list, debug: bool):
 
     :param file_list: list of files to delete.
     :type file_list: list
-    :param clean: whether or not to skip file deletion.
-    :type clean: bool
     :param debug: send debug messages.
     :type: debug: bool"""
     for path in file_list:
@@ -118,9 +116,9 @@ def load_dict(name: str, root: str, dictobj: dict, debug: bool = False) -> list:
     file_search = ""
     exclusions = ""
     f, e = 0, 0
-    for key in dictobj:
+    for key in dictobj.keys():
         if dictobj[key] is False:
-            if f == 0: # wcmatch requires no '|' on the first entry.
+            if f == 0:  # wcmatch requires no '|' on the first entry.
                 file_search += key
             else:
                 file_search += "|" + key
