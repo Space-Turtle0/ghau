@@ -16,17 +16,22 @@
 #  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 #  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-from setuptools import setup
+import setuptools
 
-setup(
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
+setuptools.setup(
     name='ghau',
-    version='0.0.1',
-    packages=['ghau'],
-    url='https://www.github.com/InValidFire/ghau',
-    license='MIT License',
+    version='0.1.0',
     author='Elizabeth Housden',
     author_email='wolvie2013@gmail.com',
     description='Github Auto Update package using Github releases.',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    packages=setuptools.find_packages(),
+    url='https://www.github.com/InValidFire/ghau',
+    license='MIT License',
     install_requires=[
         "wcmatch~=6.0.1",
         "PyGithub~=1.51",
