@@ -1,16 +1,11 @@
 import ghau
 import logging
+import sys
+import os
 
+#logging junk
+logging.basicConfig(level=logging.DEBUG)
 
-
-#Data Values
-'''
-NOTSET = 0
-DEBUG = 10
-INFO = 30
-WARNING = 30
-ERROR = 40
-CRITICAL = 50
-'''
-#We can remove this later
-
+update = ghau.Update(version="v0.0.0", repo="InValidFire/UpdateTest")
+update.wl_files("README.md", "main.py")
+update.wl_test()
