@@ -251,7 +251,7 @@ class Update:
 
         :param args: list of files to protect.
         :type args: str"""
-        if len(self.whitelist.keys()) == 1 and "!**" in self.cleanlist.keys():  # resets whitelist if not used yet.
+        if len(self.whitelist.keys()) == 1 and "!**" in self.whitelist.keys():  # resets whitelist if not used yet.
             self.whitelist = {}
             gf.message("Reset whitelist for building.", "debug")
         for arg in args:
@@ -265,7 +265,7 @@ class Update:
 
         :param args: list of folders to exclude.
         :type args: str"""
-        if len(self.whitelist.keys()) == 1 and "!**" in self.cleanlist.keys:  # resets whitelist if not used yet.
+        if len(self.whitelist.keys()) == 1 and "!**" in self.whitelist.keys():  # resets whitelist if not used yet.
             self.whitelist = {}
             gf.message("Reset whitelist for building.", "debug")
         for arg in args:
