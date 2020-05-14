@@ -26,7 +26,7 @@ import requests
 from wcmatch import wcmatch
 
 log = logging.getLogger("ghau")
-
+log.addHandler(logging.StreamHandler)
 
 def message(msg, mode: str = "debug"):  # TODO: Change to utilize 'logging' module, much more flexible.
     """Sends a message to the console if send is true. Used to easily control debug and error message output."""
