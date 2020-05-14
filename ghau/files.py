@@ -20,15 +20,26 @@ import os
 import sys
 import shutil
 import zipfile
+import logging
 
 import requests
 from wcmatch import wcmatch
 
+log = logging.getLogger("ghau")
 
-def message(msg, send: bool = False):  # TODO: Change to utilize 'logging' module, much more flexible.
+
+def message(msg, mode: str = "debug"):  # TODO: Change to utilize 'logging' module, much more flexible.
     """Sends a message to the console if send is true. Used to easily control debug and error message output."""
-    if send:
-        print("GHAU: "+str(msg))
+    if mode == "debug":
+        log.debug(message)
+    elif mode == "info":
+        log.info(message)
+    elif mode == "warning":
+        log.warning(message)
+    elif mode == "critical":
+        log.critical(message)
+    elif mode == "exception":
+        log.exception(message)
 
 
 def download(url: str, save_file: str, debug: bool):
@@ -47,7 +58,7 @@ def download(url: str, save_file: str, debug: bool):
             if chunk:
                 i += 1
                 fd.write(chunk)
-                message("Wrote chunk {} to {}".format(str(i), save_file), debug)
+                message("Wrote chunk {} to {}".format(str(i), save_file), "debug")
 
 
 def extract_zip(extract_path, file_path, wl: list, debug: bool = False):
@@ -64,7 +75,7 @@ def extract_zip(extract_path, file_path, wl: list, debug: bool = False):
     :param debug: send debug messages
     :type debug: bool"""
     program_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
-    message("Extracting: {}".format(file_path), debug)
+    message("Extracting: {}".format(file_path), "debug")
     with zipfile.ZipFile(file_path, "r") as zf:
         zf.extractall(extract_path)
         for item in zf.infolist():
@@ -72,17 +83,17 @@ def extract_zip(extract_path, file_path, wl: list, debug: bool = False):
                 extract_folder = os.path.join(program_dir, item.filename)
                 break
     for filename in os.listdir(os.path.join(extract_path, extract_folder)):
-        message("Comparing: file {}".format(filename), debug)
+        message("Comparing: file {}".format(filename), "debug")
         in_whitelist = False
         for item in wl:  # don't overwrite whitelisted items.
-            message("Comparing against whitelist item: {}".format(item), debug)
+            message("Comparing against whitelist item: {}".format(item), "debug")
             if filename == os.path.split(item)[1]:
                 in_whitelist = True
-                message("{} matched {}".format(item, filename), debug)
+                message("{} matched {}".format(item, filename), "debug")
         if in_whitelist:
             message("Skipping to next file.")
             continue
-        message("Extracting file: {}".format(filename))
+        message("Extracting file: {}".format(filename), "debug")
         source = os.path.join(extract_path, extract_folder, filename)
         dest = os.path.join(extract_path, filename)
         shutil.move(source, dest)
@@ -98,7 +109,7 @@ def clean_files(file_list: list, debug: bool):
     :param debug: send debug messages.
     :type: debug: bool"""
     for path in file_list:
-        message("Removing path {}".format(path), debug)
+        message("Removing path {}".format(path), "debug")
         os.remove(path)
 
 
@@ -132,9 +143,9 @@ def load_dict(name: str, root: str, dictobj: dict, debug: bool = False) -> list:
             else:
                 exclusions += "|" + key
             e += 1
-    message("{} file_search: {}".format(name, file_search), debug)
-    message("{} exclusions: {}".format(name, exclusions), debug)
-    message("{} is searching for files in directory: {}".format(name, root), debug)
+    message("{} file_search: {}".format(name, file_search), "debug")
+    message("{} exclusions: {}".format(name, exclusions), "debug")
+    message("{} is searching for files in directory: {}".format(name, root), "debug")
     pl = wcmatch.WcMatch(root, file_search, exclusions, flags=wcmatch.RECURSIVE | wcmatch.GLOBSTAR |
                          wcmatch.PATHNAME).match()
     return pl

@@ -39,7 +39,7 @@ def _find_release_asset(release: GitRelease.GitRelease, asset: str, debug: bool)
         return al[0].browser_download_url
     for item in al:  # otherwise, look for the specific asset requested.
         if item.name == asset:
-            gf.message("Found asset {} with URL: {}".format(item.name, item.browser_download_url), debug)
+            gf.message("Found asset {} with URL: {}".format(item.name, item.browser_download_url), "debug")
             return item.browser_download_url
         raise ge.ReleaseAssetError(release.tag_name, asset)  # no asset found by requested name? abort.
 
@@ -61,19 +61,19 @@ def _load_release(repo: str, pre_releases: bool, auth, debug: bool) -> GitReleas
     g = Github(auth)
     try:
         if g.get_repo(repo).get_releases().totalCount == 0:  # no releases found
-            gf.message("Release count is 0", debug)
+            gf.message("Release count is 0", "debug")
             raise ge.ReleaseNotFoundError(repo)
         if pre_releases:
-            gf.message("Accepting pre-releases", debug)
+            gf.message("Accepting pre-releases", "debug")
             return g.get_repo(repo).get_releases().reversed[0]
         elif not pre_releases:
-            gf.message("Accepting full releases", debug)
+            gf.message("Accepting full releases", "debug")
             for release in g.get_repo(repo).get_releases().reversed:
-                gf.message("Checking release: {}".format(release.tag_name), debug)
+                gf.message("Checking release: {}".format(release.tag_name), "debug")
                 if not release.prerelease:
-                    gf.message("Release found {}".format(release.tag_name), debug)
+                    gf.message("Release found {}".format(release.tag_name), "debug")
                     return release
-            gf.message("Zero non-pre-release releases found", debug)
+            gf.message("Zero non-pre-release releases found", "debug")
             raise(ge.ReleaseNotFoundError(repo))
     except RateLimitExceededException:
         reset_time = g.rate_limiting_resettime
@@ -208,17 +208,17 @@ class Update:
             if do_update:
                 gf.clean_files(cl, self.debug)
                 if self.download == "zip":
-                    gf.message("Downloading Zip", self.debug)
+                    gf.message("Downloading Zip", "debug")
                     gf.download(latest_release.zipball_url, os.path.join(self.program_dir, "update.zip"), self.debug)
                     gf.extract_zip(self.program_dir, os.path.join(self.program_dir, "update.zip"), wl, self.debug)
-                    gf.message("Updated from {} to {}".format(self.version, latest_release.tag_name), True)
+                    gf.message("Updated from {} to {}".format(self.version, latest_release.tag_name), "info")
                     _run_cmd(self.reboot)
                     sys.exit()
                 if self.download == "asset":
-                    gf.message("Downloading Asset", self.debug)
+                    gf.message("Downloading Asset", "debug")
                     asset_link = _find_release_asset(latest_release, self.asset, self.debug)
                     gf.download(asset_link, self.asset, self.debug)
-                    gf.message("Updated from {} to {}".format(self.version, latest_release.tag_name), True)
+                    gf.message("Updated from {} to {}".format(self.version, latest_release.tag_name), "info")
                     _run_cmd(self.reboot)
                     sys.exit()
                 else:
@@ -237,13 +237,13 @@ class Update:
         Useful for testing your whitelist configuration."""
         gf.message(self.whitelist, self.debug)
         wl = gf.load_dict("Whitelist", self.program_dir, self.whitelist, self.debug)
-        gf.message(wl, self.debug)
+        gf.message(wl, "debug")
         if len(wl) == 0:
-            gf.message("Nothing is protected by your whitelist.", True)
+            gf.message("Nothing is protected by your whitelist.", "info")
         else:
-            gf.message("Whitelist will protect the following from being overwritten during installation: ", True)
+            gf.message("Whitelist will protect the following from being overwritten during installation: ", "info")
             for path in wl:
-                gf.message(path, True)
+                gf.message(path, "info")
 
     def wl_files(self, *args: str):
         """Add files to the whitelist. This protects any listed files from deletion during update installation.
@@ -253,10 +253,10 @@ class Update:
         :type args: str"""
         if len(self.whitelist.keys()) == 1 and "!**" in self.cleanlist.keys():  # resets whitelist if not used yet.
             self.whitelist = {}
-            gf.message("Reset whitelist for building.", self.debug)
+            gf.message("Reset whitelist for building.", "debug")
         for arg in args:
             self.whitelist[arg] = False
-            gf.message("Loaded file {} into the whitelist.".format(arg), self.debug)
+            gf.message("Loaded file {} into the whitelist.".format(arg), "debug")
 
     def wl_exclude(self, *args: str):
         """Add directories here to exclude them in building the whitelist.
@@ -267,24 +267,24 @@ class Update:
         :type args: str"""
         if len(self.whitelist.keys()) == 1 and "!**" in self.cleanlist.keys:  # resets whitelist if not used yet.
             self.whitelist = {}
-            gf.message("Reset whitelist for building.", self.debug)
+            gf.message("Reset whitelist for building.", "debug")
         for arg in args:
             self.whitelist[arg] = True
-            gf.message("Loaded file {} into the whitelist.".format(arg), self.debug)
+            gf.message("Loaded file {} into the whitelist.".format(arg), "debug")
 
     def cl_test(self):
         """Test the cleanlist and output what it will clean.
 
         Useful for testing your cleaning configuration."""
-        gf.message(self.cleanlist, self.debug)
+        gf.message(self.cleanlist, "debug")
         cl = gf.load_dict("Cleanlist", self.program_dir, self.cleanlist, self.debug)
-        gf.message(cl, self.debug)
+        gf.message(cl, "debug")
         if len(cl) == 0:
-            gf.message("Nothing will be deleted during cleaning.", True)
+            gf.message("Nothing will be deleted during cleaning.", "info")
         else:
-            gf.message("Cleaning will delete the following: ", True)
+            gf.message("Cleaning will delete the following: ", "info")
             for path in cl:
-                gf.message(path, self.debug)
+                gf.message(path, "debug")
 
     def cl_files(self, *args):
         """List files here you would like to erase before installing an update.
@@ -300,14 +300,14 @@ class Update:
             if "*" in args or "*.*" in args:
                 raise ge.NoPureWildcardsAllowedError("cleanlist")  # wildcard protection, no wiping devices.
         except ge.NoPureWildcardsAllowedError as e:
-            gf.message(e.message, True)
+            gf.message(e.message, "info")
             raise
         if len(self.cleanlist.keys()) == 1 and "!**" in self.cleanlist.keys():  # resets cleanlist if not used yet.
             self.cleanlist = {}
-            gf.message("Reset cleanlist for building.", True)
+            gf.message("Reset cleanlist for building.", "debug")
         for arg in args:
             self.cleanlist[arg] = False
-            gf.message("Loaded file {} into the cleanlist.".format(arg), self.debug)
+            gf.message("Loaded file {} into the cleanlist.".format(arg), "debug")
 
     def cl_exclude(self, *args: str):
         """Add directories here to exclude them in building the cleanlist.
@@ -318,7 +318,7 @@ class Update:
         :type args: str"""
         if len(self.cleanlist.keys()) == 1 and "!**" in self.cleanlist.keys():  # resets cleanlist if it's not used yet.
             self.cleanlist = {}
-            gf.message("Reset cleanlist for building.", True)
+            gf.message("Reset cleanlist for building.", "info")
         for arg in args:
             self.cleanlist[arg] = True
-            gf.message("Loaded file {} into the cleanlist exclusions.".format(arg), self.debug)
+            gf.message("Loaded file {} into the cleanlist exclusions.".format(arg), "debug")
